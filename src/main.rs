@@ -27,7 +27,7 @@ use image::RgbImage;
 use num::Complex;
 
 /// z(n) = z(n-1)^2 + c
-/// Returns amount of iterations to decide that given 'c' will escape to infinity
+/// Returns amount of iterations to decide that z will escape to infinity
 fn mandelbrot(c: num::Complex<f64>, iterations: u32) -> Option<u32> {
     let mut z: Complex<f64> = num::Complex::new(0.0, 0.0);
     for i in 0..iterations {
