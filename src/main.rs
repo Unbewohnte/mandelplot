@@ -53,7 +53,7 @@ fn main() {
     let mut palette: u8 = 0;
 
     let matches = clap::App::new("mandelplot")
-        .version("0.1.0")
+        .version("0.1.1")
         .author("Kasyanov Nikolay Alexeyevich (Unbewohnte)")
         .arg(
             Arg::new("max_iter")
