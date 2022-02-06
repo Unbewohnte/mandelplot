@@ -41,8 +41,8 @@ fn mandelbrot(c: num::Complex<f64>, iterations: u32) -> Option<u32> {
 }
 
 fn main() {
-    const RE_START: f64 = -2.0;
-    const RE_END: f64 = 1.0;
+    const RE_START: f64 = -2.5;
+    const RE_END: f64 = 1.5;
     const IM_START: f64 = -2.0;
     const IM_END: f64 = 2.0;
 
