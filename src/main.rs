@@ -25,6 +25,7 @@ use image::ImageFormat;
 use image::Rgb;
 use image::RgbImage;
 use num::Complex;
+use std::sync::{Arc, Mutex};
 
 /// z(n) = z(n-1)^2 + c
 /// Returns amount of iterations to decide that z will escape to infinity
@@ -40,6 +41,33 @@ fn mandelbrot(c: num::Complex<f64>, iterations: u32) -> Option<u32> {
     return None;
 }
 
+/// Converts a pixel in an image plane to the point in the imaginary plane
+fn pixel_to_set_point(x: u32, y: u32, width: u32, height: u32, r_s: f64, r_e: f64, i_s: f64, i_e: f64) -> num::Complex<f64> {
+    return num::Complex::new(
+        r_s + (x as f64 / width as f64) * (r_e - r_s),
+        i_s + (y as f64 / height as f64) * (i_e - i_s),
+    )
+}
+
+/// Computes a gray color of the pixel that corresponds to the point in the imaginary plane based on
+/// amount of iteraitons
+fn compute_pixel_color(c: num::Complex<f64>, max_iter: u32, palette: u8) -> u8 {
+    let pixel_color: u8;
+    if let Some(iterations) = mandelbrot(c, max_iter) {
+        pixel_color = ((iterations as f64 / 255.0).sin() * 255.0) as u8;
+    } else {
+        if palette == 0 {
+            // light
+            pixel_color = 255;
+        } else {
+            // dark
+            pixel_color = 0;
+        }
+    }
+
+    return pixel_color;
+}
+
 fn main() {
     const RE_START: f64 = -2.5;
     const RE_END: f64 = 1.5;
@@ -53,7 +81,7 @@ fn main() {
     let mut palette: u8 = 0;
 
     let matches = clap::App::new("mandelplot")
-        .version("0.1.1")
+        .version("0.2.0")
         .author("Kasyanov Nikolay Alexeyevich (Unbewohnte)")
         .arg(
             Arg::new("max_iter")
@@ -93,6 +121,7 @@ fn main() {
         )
         .get_matches();
 
+    // process given options
     if let Some(arg_max_iter) = matches.value_of("max_iter") {
         max_iter = arg_max_iter.parse::<u32>().unwrap();
     }
@@ -123,38 +152,47 @@ fn main() {
         }
     }
 
-    let mut img = RgbImage::new(width, height);
-    for y in 0..height {
-        for x in 0..width {
-            let c = num::Complex::new(
-                RE_START + (x as f64 / width as f64) * (RE_END - RE_START),
-                IM_START + (y as f64 / height as f64) * (IM_END - IM_START),
-            );
 
-            let pixel_color: u8;
-            if let Some(iterations) = mandelbrot(c, max_iter) {
-                pixel_color = ((iterations as f64 / 255.0).sin() * 255.0) as u8;
-            } else {
-                if palette == 0 {
-                    // light
-                    pixel_color = 255;
-                } else {
-                    // dark
-                    pixel_color = 0;
+    let img = Arc::new(Mutex::new(RgbImage::new(width, height)));
+
+    // run the algorithm in a naive multi-threaded way
+    const AMOUNT_OF_THREADS: usize = 8;
+    let thread_work = (height as f32 / AMOUNT_OF_THREADS as f32) as u32;
+    let mut threads = Vec::with_capacity(AMOUNT_OF_THREADS);
+
+    let mut from: u32 = 0;
+    for _ in 0..AMOUNT_OF_THREADS {
+        let img_copy = img.clone();
+        threads.push(std::thread::spawn(move || {
+            for y in from..from+thread_work {
+                for x in 0..width {
+                    let c = pixel_to_set_point(x, y, width, height, RE_START, RE_END, IM_START, IM_END);
+                    let pixel_color = compute_pixel_color(c, max_iter, palette);
+
+                    img_copy.lock().unwrap().put_pixel(x, y, Rgb([pixel_color, pixel_color, pixel_color]));
                 }
             }
+        }));
 
-            img.put_pixel(x, y, Rgb([pixel_color, pixel_color, pixel_color]));
+        from += thread_work;
+    }
+
+    // wait for everyone to finish
+    for thread in threads {
+        match thread.join() {
+         Ok(_) => {}
+         Err(e) => { eprintln!("Error waiting for thread to finish: {:?}", e); }
         }
     }
 
 
-    match img.save_with_format(image_name + ".png", ImageFormat::Png) {
+    // save image
+    match img.lock().unwrap().save_with_format(image_name + ".png", ImageFormat::Png) {
         Ok(_) => {
             println!("Saved")
         }
         Err(e) => {
             eprintln!("Could not save image: {}", e)
         }
-    }
+    };
 }
