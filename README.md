@@ -26,7 +26,7 @@ Singe-threaded (19200x10800) (pre v0.2.0)
 Multi-threaded (19200x10800) (v0.2.0)
 - ./target/release/mandelplot -d 19200x10800 -p dark  85.28s user 8.06s system 258% cpu 36.079 total
 
-1:10 - 0:36 == 0:34 seconds saved
+1:10 - 0:36 == 0:34 saved
 
 ## TODO:
 - ~~generate image in parallel~~
