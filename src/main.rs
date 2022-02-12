@@ -69,10 +69,10 @@ fn compute_pixel_color(c: num::Complex<f64>, max_iter: u32, palette: u8) -> u8 {
 }
 
 fn main() {
-    const RE_START: f64 = -2.5;
-    const RE_END: f64 = 1.5;
-    const IM_START: f64 = -2.0;
-    const IM_END: f64 = 2.0;
+    let mut re_start: f64 = -2.5;
+    let mut re_end: f64 = 1.5;
+    let mut im_start: f64 = -2.0;
+    let mut im_end: f64 = 2.0;
 
     let mut width: u32 = 7680;
     let mut height: u32 = 4320;
@@ -81,7 +81,7 @@ fn main() {
     let mut palette: u8 = 0;
 
     let matches = clap::App::new("mandelplot")
-        .version("0.2.0")
+        .version("0.3.0")
         .author("Kasyanov Nikolay Alexeyevich (Unbewohnte)")
         .arg(
             Arg::new("max_iter")
@@ -119,6 +119,15 @@ fn main() {
                 .long("palette")
                 .short('p')
         )
+        .arg(
+            Arg::new("m_set_dimensions")
+                .help("Set real and imaginary constraints (real_start,imaginary_startxreal_end,imaginary_end)")
+                .takes_value(true)
+                .required(false)
+                .default_value("-2.5,-2.0x1.5,2.0")
+                .long("m_set_dimensions")
+                .short('z')
+        )
         .get_matches();
 
     // process given options
@@ -152,11 +161,34 @@ fn main() {
         }
     }
 
+    if let Some(arg_m_set_dimensions) = matches.value_of("m_set_dimensions") {
+        match arg_m_set_dimensions.split_once("x") {
+            Some((start, end)) => {
+                match start.split_once(",") {
+                    Some((real_start, imaginary_start)) => {
+                        re_start = real_start.parse::<f64>().unwrap();
+                        im_start = imaginary_start.parse::<f64>().unwrap();
+                    }
+                    None => {}
+                }
+
+                match end.split_once(",") {
+                    Some((real_end, imaginary_end)) => {
+                        re_end = real_end.parse::<f64>().unwrap();
+                        im_end = imaginary_end.parse::<f64>().unwrap();
+                    }
+                    None => {}
+                }
+            }
+            None => {}
+        }
+    }
+
 
     let img = Arc::new(Mutex::new(RgbImage::new(width, height)));
 
     // run the algorithm in a naive multi-threaded way
-    const AMOUNT_OF_THREADS: usize = 8;
+    const AMOUNT_OF_THREADS: usize = 24;
     let thread_work = (height as f32 / AMOUNT_OF_THREADS as f32) as u32;
     let mut threads = Vec::with_capacity(AMOUNT_OF_THREADS);
 
@@ -166,7 +198,7 @@ fn main() {
         threads.push(std::thread::spawn(move || {
             for y in from..from+thread_work {
                 for x in 0..width {
-                    let c = pixel_to_set_point(x, y, width, height, RE_START, RE_END, IM_START, IM_END);
+                    let c = pixel_to_set_point(x, y, width, height, re_start, re_end, im_start, im_end);
                     let pixel_color = compute_pixel_color(c, max_iter, palette);
 
                     img_copy.lock().unwrap().put_pixel(x, y, Rgb([pixel_color, pixel_color, pixel_color]));
