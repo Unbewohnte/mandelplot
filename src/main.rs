@@ -28,12 +28,13 @@ use num::Complex;
 use std::sync::{Arc, Mutex};
 
 /// z(n) = z(n-1)^2 + c
-/// Returns amount of iterations to decide that z will escape to infinity
+/// Returns amount of iterations that were necessary to decide that z escapes to infinity.
+/// Returns None if z doesn`t escape to infinity even after specified number of iterations
 fn mandelbrot(c: num::Complex<f64>, iterations: u32) -> Option<u32> {
     let mut z: Complex<f64> = num::Complex::new(0.0, 0.0);
-    for i in 0..iterations {
+    for n in 0..iterations {
         if z.norm_sqr() > 4.0 {
-            return Some(i);
+            return Some(n);
         }
         z = z * z + c;
     }
